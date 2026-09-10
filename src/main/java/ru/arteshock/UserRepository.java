@@ -1,12 +1,16 @@
 package ru.arteshock;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.*;
 
 public class UserRepository {
+
+    private static final String SQL_FIND_ALL = "SELECT id, name, email, age FROM users";
+    private static final String SQL_FIND_BY_ID = "SELECT id, name, email, age FROM users WHERE id = ?";
+    private static final String SQL_SAVE_USER = "INSERT INTO users (name, email, age) VALUES (?, ?, ?)";
+
+
+
     public List<User> findAll(){
 
         List<User> users = new ArrayList<>();
@@ -14,7 +18,7 @@ public class UserRepository {
         DBConnector connector = new DBConnector();
 
         try(Connection connection = connector.getConnection();
-            PreparedStatement pstmt = connection.prepareStatement("SELECT id, name, email, age FROM users");
+            PreparedStatement pstmt = connection.prepareStatement(SQL_FIND_ALL);
             ResultSet rs = pstmt.executeQuery()){
 
             while (rs.next()){
@@ -35,7 +39,7 @@ public class UserRepository {
         User user = null;
 
         try (Connection connection = connector.getConnection();
-             PreparedStatement pstmt = connection.prepareStatement("SELECT id, name, email, age FROM users WHERE id = ?")) {
+             PreparedStatement pstmt = connection.prepareStatement(SQL_FIND_BY_ID)) {
 
             pstmt.setInt(1, id);
 
@@ -52,19 +56,37 @@ public class UserRepository {
         return user;
     }
 
+    public User saveUser(User user){
+        DBConnector connector = new DBConnector();
+
+        try(Connection connection = connector.getConnection();
+        PreparedStatement pstmt = connection.prepareStatement(SQL_SAVE_USER, Statement.RETURN_GENERATED_KEYS)){
+
+            pstmt.setString(1, user.getName());
+            pstmt.setString(2, user.getEmail());
+            pstmt.setInt(3, user.getAge());
+            pstmt.executeUpdate();
+
+            try(ResultSet rs = pstmt.getGeneratedKeys()){
+                if(rs.next()){
+                    user.setId(rs.getInt(1));
+                }
+            }
+
+        }catch (SQLException e){
+            System.err.println(e.getMessage());
+        }
+
+        return user;
+
+    }
+
     public static void main(String[] args) {
 
         UserRepository repo = new UserRepository();
-        System.out.println("Все пользователи:");
-        List<User> users = repo.findAll();
-        for(User user : users){
-            System.out.println(user);
-        }
 
-        System.out.println("Id = 1:");
-        System.out.println(repo.findById(1));
-
-        System.out.println("Id = 999");
-        System.out.println(repo.findById(999));
+        User newUser = new User(0, "Пётр", "petr@post.com", 40);
+        repo.saveUser(newUser);
+        System.out.println("Сохранён: " + newUser);
     }
 }
