@@ -5,9 +5,11 @@ import java.util.*;
 
 public class UserRepository {
 
-    private static final String SQL_FIND_ALL = "SELECT id, name, email, age FROM users";
+    private static final String SQL_FIND_ALL = "SELECT id, name, email, age FROM users ORDER BY id";
     private static final String SQL_FIND_BY_ID = "SELECT id, name, email, age FROM users WHERE id = ?";
     private static final String SQL_SAVE_USER = "INSERT INTO users (name, email, age) VALUES (?, ?, ?)";
+    private static final String SQL_UPDATE_USER = "UPDATE users SET name = ?, email = ?, age = ? WHERE id = ?";
+    private static final String SQL_DELETE_BY_ID = "DELETE FROM users WHERE id = ?";
 
 
 
@@ -81,12 +83,72 @@ public class UserRepository {
 
     }
 
+    public boolean updateUser(User user){
+
+        DBConnector connector = new DBConnector();
+
+        boolean result = false;
+
+        try(Connection connection = connector.getConnection();
+        PreparedStatement pstmt = connection.prepareStatement(SQL_UPDATE_USER)){
+
+            pstmt.setString(1, user.getName());
+            pstmt.setString(2, user.getEmail());
+            pstmt.setInt(3, user.getAge());
+            pstmt.setInt(4, user.getId());
+
+            result = pstmt.executeUpdate() == 1;
+
+        }catch (SQLException e){
+            System.err.println(e.getMessage());
+        }
+
+        return result;
+    }
+
+    public boolean deleteById(int id){
+        DBConnector connector = new DBConnector();
+
+        boolean result = false;
+
+        try(Connection connection = connector.getConnection();
+        PreparedStatement pstmt = connection.prepareStatement(SQL_DELETE_BY_ID)) {
+
+            pstmt.setInt(1, id);
+            result = pstmt.executeUpdate() == 1;
+
+        }catch (SQLException e){
+            System.err.println(e.getMessage());
+        }
+        return result;
+    }
+
     public static void main(String[] args) {
 
         UserRepository repo = new UserRepository();
 
-        User newUser = new User(0, "Пётр", "petr@post.com", 40);
-        repo.saveUser(newUser);
-        System.out.println("Сохранён: " + newUser);
+        System.out.println("=== Все пользователи ===");
+        repo.findAll().forEach(System.out::println);
+
+        System.out.println("\n=== UPDATE id=1 ===");
+        User user = repo.findById(1);
+        user.setName("Иван Иванович");
+        user.setAge(19);
+        System.out.println("Обновлён: " + repo.updateUser(user));
+        System.out.println(repo.findById(1));
+
+        System.out.println("\n=== UPDATE id=999 (не существует) ===");
+        User fake = new User(999, "Невидимка", "no@mail.com", 1);
+        System.out.println("Обновлён: " + repo.updateUser(fake));
+
+        System.out.println("\n=== DELETE id=2 ===");
+        System.out.println("Удалён: " + repo.deleteById(2));
+
+        System.out.println("\n=== DELETE id=999 (не существует) ===");
+        System.out.println("Удалён: " + repo.deleteById(999));
+
+        System.out.println("\n=== Все пользователи после изменений ===");
+        repo.findAll().forEach(System.out::println);
+
     }
 }
